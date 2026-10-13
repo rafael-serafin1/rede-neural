@@ -2,10 +2,12 @@
 
 #include "neural_network.hpp"
 #include <vector>
+#include <memory>
+#include <stdexcept>
 
 class logic_brain {
 private:
-    std::vector<neural_network> brain;
+    std::vector<std::unique_ptr<neural_network>> brain;
     int* training_set_order;
     int epochs;
 
@@ -50,40 +52,36 @@ public:
         training_set_order(TrainingSetOrder), epochs(Epochs) { }
 
     void inicializar() {
-        brain.push_back(neural_network(inputs, outputs_and,   logic_gates::AND));
-        brain.push_back(neural_network(inputs, outputs_or,    logic_gates::OR));
-        brain.push_back(neural_network(inputs, outputs_xor,   logic_gates::XOR));
-        brain.push_back(neural_network(inputs, outputs_nand,  logic_gates::NAND));
-        brain.push_back(neural_network(inputs, outputs_nor,   logic_gates::NOR));
-        brain.push_back(neural_network(inputs, outputs_nxor,  logic_gates::NXOR));
+        brain.push_back(std::make_unique<neural_network>(inputs, outputs_and,   logic_gates::AND));
+        brain.push_back(std::make_unique<neural_network>(inputs, outputs_or,    logic_gates::OR));
+        brain.push_back(std::make_unique<neural_network>(inputs, outputs_xor,   logic_gates::XOR));
+        brain.push_back(std::make_unique<neural_network>(inputs, outputs_nand,  logic_gates::NAND));
+        brain.push_back(std::make_unique<neural_network>(inputs, outputs_nor,   logic_gates::NOR));
+        brain.push_back(std::make_unique<neural_network>(inputs, outputs_nxor,  logic_gates::NXOR));
     }
 
     void treinar() {
         for (auto& i: brain)
-            i.treinar(training_set_order, epochs);
+            i->treinar(training_set_order, epochs);
     }
 
     void treinar(bool print) {
         for (auto& i: brain) {
-            i.treinar(training_set_order, epochs);
-            i.printall();
+            i->treinar(training_set_order, epochs);
+            i->printall();
         }
     }
 
     bit prever(logic_gates type, double x, double y) {
         bit resultado;
-        bool executado = false;
 
         for (auto& i: brain) {
-            if (i.get_type() == type) {
-                double retornado = i.prever(x, y);
-                resultado = i.normalizar(retornado);
-                executado = true;
+            if (i->get_type() == type) {
+                double retornado = i->prever(x, y);
+                resultado = i->normalizar(retornado);
+                return resultado;
             }
         }
-
-        if (executado) 
-            return resultado;
 
         throw std::invalid_argument("[~ X ~] porta logica desconhecida");
     }

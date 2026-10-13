@@ -6,11 +6,11 @@
 #include <stdio.h>
 
 #include "logic.hpp"
+#include "neuron.hpp"
 
 ///<label>REDE NEURAL</label>
 ///<desc>Rede neural capaz de aprender portas lógicas, com exceção do NOT porquê ele usa apenas duas entradas kkkkkk</desc>
 ///<span>
-
 
 #define NUMERO_ENTRADAS 2
 #define NUMERO_NOS_ESCONDIDOS 2
@@ -25,6 +25,8 @@ class neural_network {
 private:
     const double LearningRate = 0.1f;
 
+    neuron* neurons[NUMERO_NOS_ESCONDIDOS];
+
     double hidden_layer[NUMERO_NOS_ESCONDIDOS];
     double output_layer[NUMERO_SAIDAS];
 
@@ -37,12 +39,14 @@ private:
     double training_inputs[NUMERO_TENTATIVAS_TREINO][NUMERO_ENTRADAS];
     double training_outputs[NUMERO_TENTATIVAS_TREINO][NUMERO_SAIDAS];
 
+    double delta_output[NUMERO_SAIDAS];
+    double delta_hidden[NUMERO_NOS_ESCONDIDOS];
+
     logic_gates type;
 
-    void inicializar_pesos_escondidos(double matriz[][NUMERO_NOS_ESCONDIDOS]) {
-        for (int i = 0; i < NUMERO_ENTRADAS; ++i)
-            for (int j = 0; j < NUMERO_NOS_ESCONDIDOS; ++j)
-                matriz[i][j] = pesos_randomicos();
+    void inicializar_neuronios() {
+        for (int i = 0; i < NUMERO_NOS_ESCONDIDOS; ++i) 
+            neurons[i]->inicializar();
     }
 
     void inicializar_pesos_saida(double matriz[][NUMERO_SAIDAS]) {
@@ -64,12 +68,13 @@ protected:
     void forward_pass(int i) {
         // compute hidden layer activation
         for (int j = 0; j < NUMERO_NOS_ESCONDIDOS; ++j) {
-            double activation = hidden_layer_bias[j];
+            double activation = neurons[j]->get_bias();
 
             for (int k = 0; k < NUMERO_ENTRADAS; ++k)
-                activation += training_inputs[i][k] * hidden_weights[k][j];
+                activation += 
+                    training_inputs[i][k] * neurons[j]->get_weights(k);
 
-            hidden_layer[j] = sigmoide(activation);
+            neurons[j]->set_layer(sigmoide(activation));
         }
 
         // compute output layer activation
@@ -77,7 +82,8 @@ protected:
             double activation = output_layer_bias[j];
 
             for (int k = 0; k < NUMERO_NOS_ESCONDIDOS; ++k)
-                activation += hidden_layer[k] * output_weight[k][j];
+                activation += 
+                    neurons[k]->get_layer() * output_weight[k][j];
 
             output_layer[j] = sigmoide(activation);
         }
@@ -90,42 +96,45 @@ protected:
 
     void back_propagation(int i) {
         // compute change in output weights
-        double delta_output[NUMERO_SAIDAS];
-
         for (int j = 0; j < NUMERO_SAIDAS; ++j) {
             double error_margin = (training_outputs[i][j] - output_layer[j]);
             delta_output[j] = error_margin * derivar_sigmoide(output_layer[j]);
         }
 
         // compute change in hidden weights
-        double delta_hidden[NUMERO_NOS_ESCONDIDOS];
-
         for (int j = 0; j < NUMERO_NOS_ESCONDIDOS; ++j) {
             double error_margin = 0.0f;
+
             for (int k = 0; k < NUMERO_SAIDAS; ++k)
                 error_margin += delta_output[k] * output_weight[j][k];
             
-            delta_hidden[j] = error_margin * derivar_sigmoide(hidden_layer[j]);
+            double neuron_delta = error_margin * derivar_sigmoide(neurons[j]->get_layer());
+            neurons[j]->set_delta(neuron_delta);
         }
 
         // apply change in output weights
         for (int j = 0; j < NUMERO_SAIDAS; ++j) {
             output_layer_bias[j] += delta_output[j] * LearningRate;
+
             for (int k = 0; k < NUMERO_NOS_ESCONDIDOS; ++k) 
-                output_weight[k][j] += hidden_layer[k] * delta_output[j] * LearningRate;
+                output_weight[k][j] += 
+                    neurons[k]->get_layer() * delta_output[j] * LearningRate;
         }
 
         // apply change in hidden weights
         for (int j = 0; j < NUMERO_NOS_ESCONDIDOS; ++j) {
-            hidden_layer_bias[j] += delta_hidden[j] * LearningRate;
+            double delta = neurons[j]->get_delta();
+            neurons[j]->set_bias(neurons[j]->get_bias() + delta * LearningRate);
+
             for (int k = 0; k < NUMERO_ENTRADAS; ++k) 
-                hidden_weights[k][j] += training_inputs[i][k] * delta_hidden[j] * LearningRate;
+                neurons[j]->set_weights(neurons[j]->get_weights(k) + training_inputs[i][k] * delta * LearningRate, k);
         }
     }
 
 public:
     neural_network(double TrainingInputs[NUMERO_TENTATIVAS_TREINO][NUMERO_ENTRADAS], double TrainingOutputs[NUMERO_TENTATIVAS_TREINO][NUMERO_SAIDAS], 
-        logic_gates LogicGateType): type(LogicGateType)
+            logic_gates LogicGateType)
+        : type(LogicGateType)
     {
         for (int i = 0; i < NUMERO_TENTATIVAS_TREINO; ++i) {
             for (int j = 0; j < NUMERO_ENTRADAS; ++j)
@@ -135,18 +144,30 @@ public:
                 training_outputs[i][j] = TrainingOutputs[i][j];
         }
 
+        for (int i = 0; i < NUMERO_NOS_ESCONDIDOS; ++i)
+            neurons[i] = new neuron(NUMERO_ENTRADAS);
+
         this->initialize_weights();
     }
+
+    ~neural_network() {
+        for (int i = 0; i < NUMERO_NOS_ESCONDIDOS; ++i) 
+            delete neurons[i];
+    }
+
+    // proteção contra cópias
+    neural_network(const neural_network&) = delete;
+    neural_network& operator=(const neural_network&) = delete;
 
     logic_gates get_type() {
         return this->type;
     }
 
     void initialize_weights() {
-        this->inicializar_pesos_escondidos(this->hidden_weights);
-        this->inicializar_pesos_saida(this->output_weight);
+        // inicializa neurônios
+        this->inicializar_neuronios();
 
-        this->inicializar_bias(this->hidden_layer_bias, NUMERO_NOS_ESCONDIDOS);
+        this->inicializar_pesos_saida(this->output_weight);
         this->inicializar_bias(this->output_layer_bias, NUMERO_SAIDAS);
     }
 
@@ -170,25 +191,31 @@ public:
     }
 
     void printall() {
-        std::printf("\nRESULT FOR '%s'\n", type);
-
+        std::printf("\nRESULT FOR '%s'\n", convert_logic_gate(type));
+        
         fputs("Final Hidden Weights\n[", stdout);
-        for (int j = 0; j < NUMERO_NOS_ESCONDIDOS; ++j) 
-            printf("%f, ", hidden_weights[j]);
+        for (int j = 0; j < NUMERO_NOS_ESCONDIDOS; ++j) {
+            printf("Neuron %d: [", j);
 
-        fputs("]\nFinal Output Weights\n[", stdout);
-        for (int j = 0; j < NUMERO_SAIDAS; ++j) 
-            printf("%f, ", output_weight[j]);
+            for (int k = 0; k < NUMERO_ENTRADAS; ++k)
+                printf("%f ", neurons[j]->get_weights(k));
+
+            printf("] bias=%f\n", neurons[j]->get_bias());
+        }
+
+        fputs("Final Output Weights\n[", stdout);
+        for (int k = 0; k < NUMERO_NOS_ESCONDIDOS; ++k)
+            printf("%f, ", output_weight[k][0]);
+
+        fputs("]\n", stdout);
 
         fputs("]\nFinal Hidden Blases\n[", stdout);
-        for (int j = 0; j < NUMERO_NOS_ESCONDIDOS; ++j) {
-            printf("%f, ", hidden_layer_bias[j]);
-        }
+        for (int j = 0; j < NUMERO_NOS_ESCONDIDOS; ++j)
+            printf("%f, ", neurons[j]->get_bias());
 
         fputs("]\nFinal Output Blases\n[", stdout);
-        for (int j = 0; j < NUMERO_SAIDAS; ++j) {
+        for (int j = 0; j < NUMERO_SAIDAS; ++j)
             printf("%f, ", output_layer_bias[j]);
-        }
 
         printf("]\n\n");
     }
@@ -214,18 +241,18 @@ public:
         double inputs[NUMERO_ENTRADAS] = {x, y};
 
         for (register int i = 0; i < NUMERO_NOS_ESCONDIDOS; ++i) {
-            double activation = hidden_layer_bias[i];
+            double activation = neurons[i]->get_bias();
 
             for (register int j = 0; j < NUMERO_ENTRADAS; ++j) 
-                activation += inputs[j] * hidden_weights[j][i];
+                activation += inputs[j] * neurons[i]->get_weights(j);
 
-            hidden_layer[i] = sigmoide(activation);
+            neurons[i]->set_layer(sigmoide(activation));
         }
 
         double activation = output_layer_bias[0];
         
         for (register int i = 0; i < NUMERO_NOS_ESCONDIDOS; ++i) 
-            activation += hidden_layer[i] * output_weight[i][0];
+            activation += neurons[i]->get_layer() * output_weight[i][0];
 
         output_layer[0] = sigmoide(activation);
 

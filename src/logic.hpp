@@ -9,6 +9,27 @@ enum class logic_gates: unsigned char {
     NXOR = 5
 };
 
+const char* convert_logic_gate(logic_gates gate) {
+    char* resultado;
+
+    switch (gate) {
+        case logic_gates::AND:
+            resultado = "AND";
+        case logic_gates::NAND:
+            resultado = "NAND";
+        case logic_gates::OR:
+            resultado = "OR";
+        case logic_gates::NOR:
+            resultado = "NOR";
+        case logic_gates::XOR:
+            resultado = "XOR";
+        case logic_gates::NXOR:
+            resultado = "NXOR";
+    }
+
+    return (const char*) resultado;
+}
+
 class logic {
 public:
     static bool And(bool first, bool second) {
