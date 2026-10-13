@@ -33,7 +33,8 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    int* ordem_treinamento = (std::string(argv[1]) != "none") 
+    int* ordem_treinamento = 
+        (std::string(argv[1]) != "none") 
             ? converter(argv[1])
             : new int[4]{0, 1, 2, 3};
             
@@ -44,7 +45,8 @@ int main(int argc, char** argv) {
     try {
         nn.inicializar();
         nn.treinar();
-        bit resultado = nn.prever(logic_gates::NXOR, 1, 1);
+        //bit resultado = nn.prever(logic_gates::AND, 1, 1);
+        bit resultado = nn.arena(logic_gates::AND, 1, 1);
 
         std::printf("Resultado: %d\n", resultado.value);
     } catch (const std::invalid_argument& ex) {

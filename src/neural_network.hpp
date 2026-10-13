@@ -7,6 +7,8 @@
 
 #include "logic.hpp"
 #include "neuron.hpp"
+#include "thought.hpp"
+#include "../utils/utils.hpp"
 
 ///<label>REDE NEURAL</label>
 ///<desc>Rede neural capaz de aprender portas lógicas, com exceção do NOT porquê ele usa apenas duas entradas kkkkkk</desc>
@@ -26,21 +28,16 @@ private:
     const double LearningRate = 0.1f;
 
     neuron* neurons[NUMERO_NOS_ESCONDIDOS];
+    thought* output[NUMERO_SAIDAS];
 
-    double hidden_layer[NUMERO_NOS_ESCONDIDOS];
     double output_layer[NUMERO_SAIDAS];
-
-    double hidden_weights[NUMERO_ENTRADAS][NUMERO_NOS_ESCONDIDOS];
     double output_weight[NUMERO_NOS_ESCONDIDOS][NUMERO_SAIDAS];
-
-    double hidden_layer_bias[NUMERO_NOS_ESCONDIDOS];
     double output_layer_bias[NUMERO_SAIDAS];
+    double delta_output[NUMERO_SAIDAS];
 
     double training_inputs[NUMERO_TENTATIVAS_TREINO][NUMERO_ENTRADAS];
     double training_outputs[NUMERO_TENTATIVAS_TREINO][NUMERO_SAIDAS];
 
-    double delta_output[NUMERO_SAIDAS];
-    double delta_hidden[NUMERO_NOS_ESCONDIDOS];
 
     logic_gates type;
 
@@ -49,15 +46,9 @@ private:
             neurons[i]->inicializar();
     }
 
-    void inicializar_pesos_saida(double matriz[][NUMERO_SAIDAS]) {
-        for (int i = 0; i < NUMERO_NOS_ESCONDIDOS; ++i)
-            for (int j = 0; j < NUMERO_SAIDAS; ++j)
-                matriz[i][j] = pesos_randomicos();
-    }
-
-    void inicializar_bias(double* bias, int n) {
-        for (int i = 0; i < n; ++i) 
-            bias[i] = this->pesos_randomicos();
+    void inicializar_pensamentos() {
+        for (int i = 0; i < NUMERO_SAIDAS; ++i) 
+            output[i]->inicializar();
     }
 
 protected:
@@ -79,13 +70,15 @@ protected:
 
         // compute output layer activation
         for (int j = 0; j < NUMERO_SAIDAS; ++j) {
-            double activation = output_layer_bias[j];
+            //double activation = output_layer_bias[j];
+            double activation = output[j]->get_bias();
 
             for (int k = 0; k < NUMERO_NOS_ESCONDIDOS; ++k)
                 activation += 
-                    neurons[k]->get_layer() * output_weight[k][j];
+                    neurons[k]->get_layer() * output[j]->get_weights(k);
 
-            output_layer[j] = sigmoide(activation);
+            //output_layer[j] = sigmoide(activation);
+            output[j]->set_layer(sigmoide(activation));
         }
 
         /* 
@@ -97,8 +90,11 @@ protected:
     void back_propagation(int i) {
         // compute change in output weights
         for (int j = 0; j < NUMERO_SAIDAS; ++j) {
-            double error_margin = (training_outputs[i][j] - output_layer[j]);
-            delta_output[j] = error_margin * derivar_sigmoide(output_layer[j]);
+            //double error_margin = (training_outputs[i][j] - output_layer[j]);
+            double error_margin = (output[j]->get_training(i) - output[j]->get_layer());
+            
+            //delta_output[j] = error_margin * derivar_sigmoide(output_layer[j]);
+            output[j]->set_delta(error_margin * derivar_sigmoide(output[j]->get_layer()));
         }
 
         // compute change in hidden weights
@@ -106,7 +102,8 @@ protected:
             double error_margin = 0.0f;
 
             for (int k = 0; k < NUMERO_SAIDAS; ++k)
-                error_margin += delta_output[k] * output_weight[j][k];
+                error_margin += 
+                    output[k]->get_delta() * output[k]->get_weights(j);
             
             double neuron_delta = error_margin * derivar_sigmoide(neurons[j]->get_layer());
             neurons[j]->set_delta(neuron_delta);
@@ -114,11 +111,12 @@ protected:
 
         // apply change in output weights
         for (int j = 0; j < NUMERO_SAIDAS; ++j) {
-            output_layer_bias[j] += delta_output[j] * LearningRate;
+            //output_layer_bias[j] += delta_output[j] * LearningRate;
+            output[j]->set_bias(output[j]->get_bias() + output[j]->get_delta() * LearningRate);
 
             for (int k = 0; k < NUMERO_NOS_ESCONDIDOS; ++k) 
-                output_weight[k][j] += 
-                    neurons[k]->get_layer() * delta_output[j] * LearningRate;
+                //output_weight[k][j] += neurons[k]->get_layer() * delta_output[j] * LearningRate;
+                output[j]->set_weights(output[j]->get_weights(k) + neurons[k]->get_layer() * output[j]->get_delta() * LearningRate, k);
         }
 
         // apply change in hidden weights
@@ -147,6 +145,12 @@ public:
         for (int i = 0; i < NUMERO_NOS_ESCONDIDOS; ++i)
             neurons[i] = new neuron(NUMERO_ENTRADAS);
 
+        for (int i = 0; i < NUMERO_SAIDAS; ++i) {
+            output[i] = new thought(NUMERO_SAIDAS, NUMERO_TENTATIVAS_TREINO);
+            for (int j = 0; j < NUMERO_TENTATIVAS_TREINO; ++j)
+                output[i]->set_training(training_outputs[j][i], j);
+        }
+
         this->initialize_weights();
     }
 
@@ -167,8 +171,8 @@ public:
         // inicializa neurônios
         this->inicializar_neuronios();
 
-        this->inicializar_pesos_saida(this->output_weight);
-        this->inicializar_bias(this->output_layer_bias, NUMERO_SAIDAS);
+        // iniciliza 'outputs'
+        this->inicializar_pensamentos();
     }
 
     double sigmoide(double x) {
@@ -205,7 +209,7 @@ public:
 
         fputs("Final Output Weights\n[", stdout);
         for (int k = 0; k < NUMERO_NOS_ESCONDIDOS; ++k)
-            printf("%f, ", output_weight[k][0]);
+            printf("%f, ", output[0]->get_weights(k));
 
         fputs("]\n", stdout);
 
@@ -215,7 +219,7 @@ public:
 
         fputs("]\nFinal Output Blases\n[", stdout);
         for (int j = 0; j < NUMERO_SAIDAS; ++j)
-            printf("%f, ", output_layer_bias[j]);
+            printf("%f, ", output[j]->get_bias());
 
         printf("]\n\n");
     }
@@ -249,14 +253,50 @@ public:
             neurons[i]->set_layer(sigmoide(activation));
         }
 
-        double activation = output_layer_bias[0];
+        double activation = output[0]->get_bias();
         
         for (register int i = 0; i < NUMERO_NOS_ESCONDIDOS; ++i) 
-            activation += neurons[i]->get_layer() * output_weight[i][0];
+            activation += 
+                neurons[i]->get_layer() * output[0]->get_weights(i);
 
-        output_layer[0] = sigmoide(activation);
+        output[0]->set_layer(sigmoide(activation));
 
-        return output_layer[0];
+        return output[0]->get_layer();
+    }
+
+    double* previsao(double x, double y) {
+        double inputs[NUMERO_ENTRADAS] = {x, y};
+
+        for (size_t i = 0; i < NUMERO_NOS_ESCONDIDOS; ++i) {
+            double activation = neurons[i]->get_bias();
+
+            for (size_t j = 0; j < NUMERO_ENTRADAS; ++j)
+                activation += inputs[j] * neurons[i]->get_weights(j);
+
+            neurons[i]->set_layer(sigmoide(activation));
+        }
+
+        double activation = 0.0f;
+
+        for (size_t i = 0; i < NUMERO_NOS_ESCONDIDOS; ++i) {
+            for (size_t j = 0; j < NUMERO_SAIDAS; ++j) 
+                activation +=
+                    neurons[i]->get_layer() * output[j]->get_weights(i);
+        }
+
+        double* resultado = new double[NUMERO_SAIDAS];
+        for (size_t i = 0; i < NUMERO_SAIDAS; ++i) {
+            output[i]->set_layer(sigmoide(activation));
+            resultado[i] = output[i]->get_layer();
+        }
+
+        return resultado;
+    }
+ 
+    double batalhar(double* previsoes) {
+        double previsto = nutils::maior_repeticao<double>(previsoes, NUMERO_SAIDAS);
+
+        return previsto;
     }
 
     bit normalizar(double x) {

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <iostream>
+
 enum class logic_gates: unsigned char {
     AND  = 0,
     OR   = 1,
@@ -10,7 +12,7 @@ enum class logic_gates: unsigned char {
 };
 
 const char* convert_logic_gate(logic_gates gate) {
-    char* resultado;
+    std::string resultado;
 
     switch (gate) {
         case logic_gates::AND:
@@ -27,7 +29,7 @@ const char* convert_logic_gate(logic_gates gate) {
             resultado = "NXOR";
     }
 
-    return (const char*) resultado;
+    return resultado.c_str();
 }
 
 class logic {

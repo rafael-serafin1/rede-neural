@@ -78,7 +78,26 @@ public:
         for (auto& i: brain) {
             if (i->get_type() == type) {
                 double retornado = i->prever(x, y);
+                
                 resultado = i->normalizar(retornado);
+                return resultado;
+            }
+        }
+
+        throw std::invalid_argument("[~ X ~] porta logica desconhecida");
+    }
+
+    bit arena(logic_gates type, double x, double y) {
+        bit resultado;
+
+        for (auto& i: brain) {
+            if (i->get_type() == type) {
+                double* previsoes = i->previsao(x, y);
+                double retornado  = i->batalhar(previsoes);
+
+                resultado = i->normalizar(retornado);
+                
+                delete previsoes;
                 return resultado;
             }
         }
