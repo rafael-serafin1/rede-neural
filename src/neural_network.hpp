@@ -20,20 +20,15 @@
 #define NUMERO_TENTATIVAS_TREINO 4
 
 struct __attribute__((packed)) bit {
-    unsigned int value : 1;         // ocupa LITERALMENTE 1 bit
+    unsigned short value: 1;
 };
 
 class neural_network {
 private:
     const double LearningRate = 0.1f;
 
-    neuron* neurons[NUMERO_NOS_ESCONDIDOS];
+    neuron*  neurons[NUMERO_NOS_ESCONDIDOS];
     thought* output[NUMERO_SAIDAS];
-
-    double output_layer[NUMERO_SAIDAS];
-    double output_weight[NUMERO_NOS_ESCONDIDOS][NUMERO_SAIDAS];
-    double output_layer_bias[NUMERO_SAIDAS];
-    double delta_output[NUMERO_SAIDAS];
 
     double training_inputs[NUMERO_TENTATIVAS_TREINO][NUMERO_ENTRADAS];
     double training_outputs[NUMERO_TENTATIVAS_TREINO][NUMERO_SAIDAS];

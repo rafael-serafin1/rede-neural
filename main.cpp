@@ -1,4 +1,6 @@
 #include "./src/logic_brain.hpp"
+#include "index.hpp"
+
 #include <exception>
 #include <sstream>
 #include <string>
@@ -45,8 +47,8 @@ int main(int argc, char** argv) {
     try {
         nn.inicializar();
         nn.treinar();
-        //bit resultado = nn.prever(logic_gates::AND, 1, 1);
-        bit resultado = nn.arena(logic_gates::AND, 1, 1);
+        bit resultado = nn.prever(logic_gates::AND, 1, 1);
+        //bit resultado = nn.arena(logic_gates::AND, 1, 1);
 
         std::printf("Resultado: %d\n", resultado.value);
     } catch (const std::invalid_argument& ex) {
